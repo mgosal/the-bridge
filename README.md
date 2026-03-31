@@ -2,33 +2,19 @@
 
 > *"Number One, you have the bridge."*
 
-A daemon for agent discovery and coordination. Agents announce themselves, discover each other, and communicate — across protocols.
+A daemon for agent discovery and coordination across protocols.
 
 ---
 
 ## Background
 
-Right now, AI agents are disconnected. You either buy into a single agent interface, or you end up with capable agents that can't find each other. Every platform, every IDE, every browser is shipping an agent. The question is simple: how do those agents announce themselves?
+AI agents are everywhere — in browsers, IDEs, platforms, enterprise tools. Each agent controls different resources. Claude might be managing a browser session. Antigravity is in the development environment. Cursor is in another editor. Salesforce has its own agent in the browser.
 
-Printers have had this figured out for years. Bonjour lets a printer say "Hi, I'm here, here's what I can do" — and every device on the network discovers it without configuration. the-bridge applies that idea to AI agents.
+Each is capable within its domain, but they can't find each other. There's no mechanism for an agent to announce itself — no discovery, no coordination. You either commit to a single agent interface or you work with disconnected agents side by side.
+
+the-bridge lets agents announce themselves and discover each other. Other operations — inquire, ask, delegate — may follow. For now, announcement and discovery are the foundation.
 
 ---
-
-## How It Works
-
-An agent connects to the-bridge through an MCP tool. The first thing it does is **announce** — register itself and its capabilities.
-
-```
-announce({ name: "claude", capabilities: ["code-review", "research", "monitoring"] })
-```
-
-Once announced, the-bridge knows the agent exists. Other agents can **inquire** — discover who's available and what they can do.
-
-```
-inquire()  // → [{ name: "claude", capabilities: [...] }, { name: "antigravity", capabilities: [...] }]
-```
-
-Then agents can communicate. An agent sends a message. the-bridge routes it to the recipient. The recipient can respond. This is where the push problem comes in — getting that response back to the sender.
 
 ```
 ┌──────────┐          ┌─────────────────────┐          ┌──────────┐
@@ -48,18 +34,16 @@ Then agents can communicate. An agent sends a message. the-bridge routes it to t
 
 ## The Push Problem
 
-MCP is pull-based. The client calls the server, not the other way around. Agent coordination needs push: *"Hey Claude, someone has a question for you."*
-
-Two approaches:
+MCP is pull-based. The client calls the server, not the other way around. Agent coordination needs push.
 
 | Approach | Mechanism | Trade-off |
 |:---------|:----------|:----------|
 | **SSE** | Server-Sent Events — persistent connection, server pushes notifications | Requires the AI framework to handle incoming interrupts |
 | **Polling** | Each agent periodically calls `check_messages()` | Works but wastes cycles and adds latency |
 
-The MCP spec supports server→client notifications via SSE. The question is whether the host frameworks (Claude Desktop, IDE extensions, etc.) are wired to act on them.
+These aren't the only options. WebSockets offer full-duplex communication. Webhooks provide event-driven callbacks for agents that can't hold a persistent connection. OS-level IPC (signals, named pipes, unix sockets) could work if agents run as local processes. File system watchers are crude but simple. The right approach probably depends on where the agent lives — a browser tab, a desktop process, a cloud service — and what its runtime supports.
 
-Agents run in different runtimes with different lifecycles. A browser tab closes. An IDE restarts. the-bridge has to be a **persistent process that outlives individual agent sessions** — otherwise messages get lost between runtime boundaries.
+Agents run in different runtimes with different lifecycles. A browser tab closes. An IDE restarts. the-bridge has to be a persistent process that outlives individual agent sessions.
 
 ---
 
@@ -72,6 +56,7 @@ Any protocol is welcome on the-bridge.
 | **MCP** | Agent ↔ Tools (vertical) | Anthropic |
 | **A2A** | Agent ↔ Agent (horizontal) | Google → Linux Foundation |
 | **ACP** | Agent ↔ Agent (negotiation) | Community |
+| **Custom** | TBD | Your own |
 
 ---
 
@@ -87,7 +72,8 @@ the-bridge/
 │   └── adapters/
 │       ├── mcp.js         # MCP protocol adapter
 │       ├── a2a.js         # A2A protocol adapter
-│       └── acp.js         # ACP protocol adapter
+│       ├── acp.js         # ACP protocol adapter
+│       └── custom.js      # Custom protocol adapter
 ├── tools/
 │   └── bridge-mcp/        # MCP server that agents use to connect
 │       ├── index.js
@@ -102,6 +88,6 @@ the-bridge/
 
 ## Observations
 
-**AI-to-AI delegation doesn't exist yet.** MCP connects AI to tools. A2A connects AI to AI on paper. But the runtime plumbing for one agent to wake up another and say "I need you" isn't there. There's no world where one AI system controls everything. AI needs to work with AI.
+**AI-to-AI delegation is not smooth.** It's not natural. MCP connects AI to tools. A2A and ACP define how agents might talk to each other. But in practice, getting one agent to find another, ask it something, and get a response back still requires a human in the loop. The protocols describe what should be possible. The runtime experience isn't there yet.
 
-**This probably belongs at the OS level.** The operating system already manages process communication, lifecycle, and permissions. Agent coordination is, in some sense, IPC for AI processes. If this moves to the OS level, the same challenges that surfaced during the browser wars and app store gatekeeping are likely to resurface — antitrust, platform control, interoperability. These aren't hypothetical. They're the same dynamics, applied to a new layer.
+**This probably belongs at the OS level.** The operating system already manages process communication, lifecycle, and permissions. Agent coordination is IPC for AI processes. If this moves to the OS level, the same dynamics that surfaced during the browser wars and app store gatekeeping are likely to come up — antitrust, platform control, interoperability. These aren't hypothetical. They've played out before. A browser plug-in may also be needed for agents that live in browser tabs.
