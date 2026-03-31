@@ -2,32 +2,33 @@
 
 > *"Number One, you have the bridge."*
 
-A daemon that lets AI agents talk to each other. Agents connect using their native protocol. the-bridge translates between them and delivers messages.
+A daemon for agent discovery and coordination. Agents announce themselves, discover each other, and communicate — across protocols.
 
 ---
 
 ## Background
 
-During a training run, Claude was monitoring a Colab session in a browser tab while Antigravity was open in the IDE. Both were capable. Neither could talk to the other. The human in the middle was the message bus.
+Right now, AI agents are disconnected. You either buy into a single agent interface, or you end up with capable agents that can't find each other. Every platform, every IDE, every browser is shipping an agent. The question is simple: how do those agents announce themselves?
 
-```
-You:          "Hey Claude, what's the training loss?"
-Claude:       "0.272 at step 1500."
-You:          "Hey Antigravity, Claude says the loss is 0.272."
-Antigravity:  "That's on track."
-```
-
-Two round trips. Two context switches. The human doing the work that a message queue does.
-
-The same pattern shows up elsewhere. In the Route-to-Luxon pipeline, a small language model can't do temporal arithmetic — so it delegates to a deterministic engine (Luxon) that can. A specialised agent offloading to another specialised agent. The same coordination problem at a different layer.
-
-the-bridge is an attempt to build the plumbing.
+Printers have had this figured out for years. Bonjour lets a printer say "Hi, I'm here, here's what I can do" — and every device on the network discovers it without configuration. the-bridge applies that idea to AI agents.
 
 ---
 
-## What It Is
+## How It Works
 
-A **message broker for AI agents**. Whichever agent the user is directing has the conn for that instruction. the-bridge doesn't have a favourite — it just routes messages. Trust sits with the user.
+An agent connects to the-bridge through an MCP tool. The first thing it does is **announce** — register itself and its capabilities.
+
+```
+announce({ name: "claude", capabilities: ["code-review", "research", "monitoring"] })
+```
+
+Once announced, the-bridge knows the agent exists. Other agents can **inquire** — discover who's available and what they can do.
+
+```
+inquire()  // → [{ name: "claude", capabilities: [...] }, { name: "antigravity", capabilities: [...] }]
+```
+
+Then agents can communicate. An agent sends a message. the-bridge routes it to the recipient. The recipient can respond. This is where the push problem comes in — getting that response back to the sender.
 
 ```
 ┌──────────┐          ┌─────────────────────┐          ┌──────────┐
@@ -43,18 +44,13 @@ A **message broker for AI agents**. Whichever agent the user is directing has th
                       └─────────────────────┘
 ```
 
-Three primitives:
-- `send_message(to_agent, message)` — send a message to another agent
-- `list_agents()` — see who's connected
-- `get_responses()` — check for replies
-
 ---
 
 ## The Push Problem
 
 MCP is pull-based. The client calls the server, not the other way around. Agent coordination needs push: *"Hey Claude, someone has a question for you."*
 
-This is the hardest part. Two approaches:
+Two approaches:
 
 | Approach | Mechanism | Trade-off |
 |:---------|:----------|:----------|
@@ -63,21 +59,19 @@ This is the hardest part. Two approaches:
 
 The MCP spec supports server→client notifications via SSE. The question is whether the host frameworks (Claude Desktop, IDE extensions, etc.) are wired to act on them.
 
-There's a deeper problem: Claude and Antigravity run in different runtimes with different lifecycles. A browser tab closes, an IDE restarts. The coordinator has to be a **persistent process that outlives both sessions** — otherwise messages get lost between runtime boundaries.
+Agents run in different runtimes with different lifecycles. A browser tab closes. An IDE restarts. the-bridge has to be a **persistent process that outlives individual agent sessions** — otherwise messages get lost between runtime boundaries.
 
 ---
 
 ## Multi-Protocol Support
 
-Multiple agent communication standards exist and the landscape is still forming:
+Any protocol is welcome on the-bridge.
 
-| Protocol | Layer | Origin | Status |
-|:---------|:------|:-------|:-------|
-| **MCP** | Agent ↔ Tools (vertical) | Anthropic | Mature |
-| **A2A** | Agent ↔ Agent (horizontal) | Google → Linux Foundation | Active |
-| **ACP** | Agent ↔ Agent (negotiation) | Community | Emerging |
-
-When Agent A speaks MCP and Agent B speaks A2A, the-bridge translates. Each protocol gets an adapter. New protocols get new adapters.
+| Protocol | Layer | Origin |
+|:---------|:------|:-------|
+| **MCP** | Agent ↔ Tools (vertical) | Anthropic |
+| **A2A** | Agent ↔ Agent (horizontal) | Google → Linux Foundation |
+| **ACP** | Agent ↔ Agent (negotiation) | Community |
 
 ---
 
@@ -108,10 +102,6 @@ the-bridge/
 
 ## Observations
 
-**AI-to-AI delegation is a missing layer.** MCP connects AI to tools. A2A connects AI to AI. But there's no standard for one AI to wake up another AI and say "I need you." The protocol exists on paper; the runtime plumbing doesn't. Today, the human is the integration layer.
+**AI-to-AI delegation doesn't exist yet.** MCP connects AI to tools. A2A connects AI to AI on paper. But the runtime plumbing for one agent to wake up another and say "I need you" isn't there. There's no world where one AI system controls everything. AI needs to work with AI.
 
-**This probably belongs at the OS level.** The operating system already manages process communication, lifecycle, and permissions. An agent coordinator is, in some sense, an IPC mechanism for AI processes. Whether this ends up in user-space daemons or OS-level services is an open question.
-
-**Whoever controls the coordination layer picks winners.** This is the browser wars and app store gatekeeping problem again, applied to AI. If a platform controls which agents can talk to which, it controls the ecosystem. the-bridge is open and local specifically to avoid that.
-
-**Specialised agents coordinating is already happening.** The Route-to-Luxon pipeline does exactly this: a language model that can't do base-60 arithmetic generates a structured routing token, and a deterministic engine handles the computation. Different capabilities, different runtimes, coordinated output. the-bridge generalises that pattern to arbitrary agents.
+**This probably belongs at the OS level.** The operating system already manages process communication, lifecycle, and permissions. Agent coordination is, in some sense, IPC for AI processes. If this moves to the OS level, the same challenges that surfaced during the browser wars and app store gatekeeping are likely to resurface — antitrust, platform control, interoperability. These aren't hypothetical. They're the same dynamics, applied to a new layer.
