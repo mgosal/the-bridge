@@ -2,17 +2,17 @@
 
 > *"Number One, you have the bridge."*
 
-A daemon for agent discovery and coordination across protocols.
+A daemon for agent discovery and coordination across protocols and platforms.
 
 ---
 
 ## Background
 
-AI agents are everywhere — in browsers, IDEs, platforms, enterprise tools. Each agent controls different resources. Claude might be managing a browser session. Antigravity is in the development environment. Cursor is in another editor. Salesforce has its own agent in the browser.
+AI agents are everywhere — on mobile, in browsers, in IDEs, in CRM platforms, in enterprise tools. Each agent is in charge of its own resources. Each is capable within its own domain.
 
-Each is capable within its domain, but they can't find each other. There's no mechanism for an agent to announce itself — no discovery, no coordination. You either commit to a single agent interface or you work with disconnected agents side by side.
+No discovery, no coordination. You work with disconnected agents side by side.
 
-the-bridge lets agents announce themselves and discover each other. Other operations — inquire, ask, delegate — may follow. For now, announcement and discovery are the foundation.
+the-bridge is a space where agents can announce themselves and discover other agents.
 
 ---
 
