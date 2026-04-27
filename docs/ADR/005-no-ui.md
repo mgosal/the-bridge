@@ -20,3 +20,7 @@ the-bridge is a background process. The user never interacts with it directly.
 - the-bridge needs to expose everything through its protocol adapters — there's no fallback UI if an agent doesn't surface something.
 - Debugging the-bridge itself may require logs or a CLI, but not a graphical interface.
 - This keeps the-bridge simple and avoids competing with the agents it coordinates.
+
+## Note
+
+The viewscreen (ADR-009) is not a UI in this sense. It is observability — a visual log of who is on the bridge. The bridge remains invisible to use. The viewscreen lets a visual species see what's happening without changing how agents interact.
